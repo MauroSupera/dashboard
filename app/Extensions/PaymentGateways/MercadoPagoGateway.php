@@ -1,64 +1,27 @@
 <?php
 
-namespace App\Services\Billing\Gateway;
+namespace App\Extensions\PaymentGateways;
 
-use App\Services\Billing\Transaction;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Config;
+use Exception;
 use MercadoPago\SDK;
-use MercadoPago\Payment;
-use MercadoPago\Payer;
+use App\Models\Invoice;
+use App\Services\Billing\Gateway;
 
-class MercadoPagoGateway extends Gateway
+class MercadoPagoGateway implements Gateway
 {
     public function __construct()
     {
-        SDK::setAccessToken(Config::get('billing.gateways.mercadopago.access_token'));
+        SDK::setAccessToken(config('payment.mercadopago.access_token'));
+        SDK::setIntegratorId('dev_24c65fb163bf11ea96500242ac130004');
+        SDK::setPublicKey('APP_USR-XXXXX');
+        SDK::setPrivateKey('APP_USR-XXXXX');
+        SDK::setEnv(config('payment.mercadopago.sandbox') ? 'sandbox' : 'production');
     }
 
-    public function charge($amount, $currency, $description, $metadata = [], $options = [])
+    public function charge(Invoice $invoice, array $data = []): bool
     {
-        $payment = new Payment();
-        $payment->transaction_amount = $amount;
-        $payment->description = $description;
-        $payment->currency_id = $currency;
-        $payment->metadata = $metadata;
+        // Código para processar o pagamento com MercadoPago
 
-        $payer = new Payer();
-        $payer->email = $options['email'];
-        $payment->payer = $payer;
-
-        $payment->save();
-
-        $transaction = new Transaction();
-        $transaction->setIdentifier($payment->id);
-        $transaction->setStatus(Transaction::STATUS_PENDING);
-        $transaction->setAmount($amount);
-        $transaction->setCurrency($currency);
-        $transaction->setDescription($description);
-
-        return $transaction;
-    }
-
-    public function verify(Request $request)
-    {
-        $transactionId = $request->input('transaction_id');
-        $payment = Payment::find_by_id($transactionId);
-
-        $transaction = new Transaction();
-        $transaction->setIdentifier($transactionId);
-        $transaction->setAmount($payment->transaction_amount);
-        $transaction->setCurrency($payment->currency_id);
-        $transaction->setDescription($payment->description);
-
-        if ($payment->status == 'approved') {
-            $transaction->setStatus(Transaction::STATUS_COMPLETED);
-        } else if ($payment->status == 'pending') {
-            $transaction->setStatus(Transaction::STATUS_PENDING);
-        } else {
-            $transaction->setStatus(Transaction::STATUS_FAILED);
-        }
-
-        return $transaction;
+        return true; // ou false, dependendo do sucesso ou falha do pagamento
     }
 }
